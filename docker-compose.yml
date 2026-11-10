@@ -1,0 +1,10 @@
+name: jvc-electroestilo-stock-front
+
+services:
+  jvc-electroestilo-stock-front:
+    build: .
+    container_name: jvc-electroestilo-stock-front
+    restart: always
+    ports:
+      - "3003:3000"
+    
