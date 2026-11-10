@@ -19,6 +19,51 @@ export interface Product {
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_STOCK_API_URL?.replace(/\/+$/, "");
 
+export interface CreateProductRequest {
+  name: string;
+  sku: string;
+}
+
+function getApiErrorMessage(responseBody: string, status: number, statusText: string) {
+  if (responseBody) {
+    try {
+      const body: unknown = JSON.parse(responseBody);
+      if (typeof body === "object" && body !== null) {
+        const errorBody = body as Record<string, unknown>;
+        if (typeof errorBody.detail === "string") return errorBody.detail;
+        if (typeof errorBody.message === "string") return errorBody.message;
+        if (typeof errorBody.title === "string") return errorBody.title;
+      }
+    } catch {
+      return responseBody;
+    }
+
+    return responseBody;
+  }
+
+  return `La API respondió con el estado ${status} ${statusText}.`;
+}
+
+export async function createProduct(product: CreateProductRequest): Promise<void> {
+  if (!apiBaseUrl) {
+    throw new Error("Falta configurar NEXT_PUBLIC_STOCK_API_URL en el archivo .env.local.");
+  }
+
+  const response = await fetch(`${apiBaseUrl}/api/products`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(product),
+  });
+
+  if (!response.ok) {
+    const responseBody = await response.text();
+    throw new Error(getApiErrorMessage(responseBody, response.status, response.statusText));
+  }
+}
+
 function isProduct(value: unknown): value is Product {
   if (typeof value !== "object" || value === null) return false;
 
@@ -46,7 +91,7 @@ function isProduct(value: unknown): value is Product {
 }
 
 export async function getProducts(
-  options: { refresh?: boolean; signal?: AbortSignal } = {},
+  options: { refresh?: boolean } = {},
 ): Promise<Product[]> {
   if (!apiBaseUrl) {
     throw new Error("Falta configurar NEXT_PUBLIC_STOCK_API_URL en el archivo .env.local.");
@@ -58,7 +103,6 @@ export async function getProducts(
   const response = await fetch(`${apiBaseUrl}/api/products?${query}`, {
     method: "GET",
     cache: "no-store",
-    signal: options.signal,
     headers: { Accept: "application/json" },
   });
 

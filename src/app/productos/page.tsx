@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getProducts, type Product } from "../../services/products";
 
 function formatDate(value: string) {
@@ -19,14 +19,23 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [reloadKey, setReloadKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
-    const controller = new AbortController();
-    getProducts({ refresh: false, signal: controller.signal })
-      .then(setProducts)
+    let isActive = true;
+    const requestId = ++requestIdRef.current;
+    const isCurrentRequest = () => isActive && requestId === requestIdRef.current;
+
+    getProducts({ refresh: refreshKey > 0 })
+      .then((nextProducts) => {
+        if (isCurrentRequest()) {
+          setProducts(nextProducts);
+          setError("");
+        }
+      })
       .catch((cause: unknown) => {
-        if (controller.signal.aborted) return;
+        if (!isCurrentRequest() || (cause instanceof Error && cause.name === "AbortError")) return;
         setError(
           cause instanceof Error
             ? cause.message
@@ -34,16 +43,18 @@ export default function ProductsPage() {
         );
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (isCurrentRequest()) setLoading(false);
       });
 
-    return () => controller.abort();
-  }, [reloadKey]);
+    return () => {
+      isActive = false;
+    };
+  }, [refreshKey]);
 
   function reloadProducts() {
     setLoading(true);
     setError("");
-    setReloadKey((key) => key + 1);
+    setRefreshKey((key) => key + 1);
   }
 
   const filteredProducts = useMemo(() => {
@@ -99,7 +110,7 @@ export default function ProductsPage() {
                 <path d="M16.5 8A6.7 6.7 0 0 0 4 5.5L2.5 7M3.5 12A6.7 6.7 0 0 0 16 14.5l1.5-1.5" />
                 <path d="M2.5 3.5V7h3.5M17.5 16.5V13H14" />
               </svg>
-              {loading ? "Actualizando..." : "Actualizar"}
+              {loading ? "Actualizando..." : "Actualizar existencias"}
             </button>
           </div>
         </section>
@@ -182,18 +193,43 @@ export default function ProductsPage() {
                     </div>
                   </div>
                   <div className="product-stores">
-                    {product.availability.map((item) => (
-                      <div className="store-stock" key={item.id}>
-                        <span className={`store-stock-indicator ${item.isAvailable && item.availableQuantity > 0 ? "is-in-stock" : "is-out-of-stock"}`} />
+                    {product.availability.map((item, index) => {
+                      const outOfStock = item.availableQuantity <= 0 || !item.isAvailable;
+                      const lowStock = !outOfStock && item.availableQuantity < 10;
+                      const stockLevel = outOfStock ? "out" : lowStock ? "low" : "available";
+                      const quantityText = item.availableQuantity <= 0
+                        ? "Sin unidades"
+                        : !item.isAvailable
+                          ? `${item.availableQuantity} unidades · no disponible`
+                          : lowStock
+                            ? `${item.availableQuantity} unidades · pocas`
+                            : `${item.availableQuantity} unidades disponibles`;
+                      const statusText = item.availableQuantity <= 0
+                        ? "¡Agotado!"
+                        : !item.isAvailable
+                          ? "No disponible"
+                          : lowStock
+                            ? "Pocas unidades"
+                            : "Disponible";
+
+                      return (
+                      <div
+                        className={`store-stock store-stock-${stockLevel}`}
+                        key={item.id}
+                        aria-label={`${item.clubName}: ${quantityText}`}
+                      >
+                        <span className={`store-stock-indicator ${outOfStock ? "is-out-of-stock" : lowStock ? "is-low-stock" : "is-in-stock"}`} />
                         <div className="store-stock-details">
-                          <span>{item.clubName}</span>
-                          <strong>{item.isAvailable && item.availableQuantity > 0 ? `${item.availableQuantity} disponibles` : "Sin existencias"}</strong>
+                          <span className={`store-location-name ${index % 2 === 0 ? "store-location-primary" : "store-location-secondary"}`}>{item.clubName}</span>
+                          <strong>{quantityText}</strong>
                         </div>
-                        <span className={`store-stock-status ${item.isAvailable && item.availableQuantity > 0 ? "status-in-stock" : "status-out-of-stock"}`}>
-                          {item.isAvailable && item.availableQuantity > 0 ? "Disponible" : "Agotado"}
+                        <span className={`store-stock-status status-${stockLevel}`}>
+                          {stockLevel !== "available" && <span className="store-alert-symbol" aria-hidden="true">!</span>}
+                          {statusText}
                         </span>
                       </div>
-                    ))}
+                    );
+                    })}
                     {product.availability.length === 0 && (
                       <p className="no-stock-data">Aún no hay información de disponibilidad para este producto.</p>
                     )}

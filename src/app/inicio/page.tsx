@@ -127,10 +127,10 @@ export default function Inicio() {
                 <p>Registra nuevos productos y prepara su información para el catálogo.</p>
               </div>
               <div className="module-card-bottom">
-                <span className="module-status"><i /> En preparación</span>
-                <button className="module-action" type="button" disabled aria-label="Crear productos PriceSmart, próximamente">
-                  Próximamente <span aria-hidden="true">↗</span>
-                </button>
+                <span className="module-status module-status-ready"><i /> Creación disponible</span>
+                <Link className="module-action module-action-ready" href="/productos/crear" aria-label="Crear productos PriceSmart">
+                  Crear <span aria-hidden="true">↗</span>
+                </Link>
               </div>
               <div className="module-card-decoration" aria-hidden="true">02</div>
             </article>
