@@ -2,7 +2,10 @@ name: jvc-electroestilo-stock-front
 
 services:
   jvc-electroestilo-stock-front:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_STOCK_API_URL: ${NEXT_PUBLIC_STOCK_API_URL:-http://72.61.70.114:5003}
     container_name: jvc-electroestilo-stock-front
     restart: always
     ports:
