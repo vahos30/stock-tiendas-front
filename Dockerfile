@@ -12,7 +12,7 @@ RUN npm install
 COPY . .
 
 # NEXT_PUBLIC_* queda incorporada al bundle del navegador durante el build.
-ARG NEXT_PUBLIC_STOCK_API_URL=http://72.61.70.114:5003
+ARG NEXT_PUBLIC_STOCK_API_URL=https://stocktiendasapi.jvcsoluciones.cloud
 ENV NEXT_PUBLIC_STOCK_API_URL=${NEXT_PUBLIC_STOCK_API_URL}
 
 # Construye la aplicación
